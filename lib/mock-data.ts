@@ -4,8 +4,8 @@ import type { User, Issue, Comment, Analytics } from "./types"
 export const mockUsers: User[] = [
   {
     id: "1",
-    email: "john.citizen@email.com",
-    name: "John Citizen",
+    email: "citizen@gmail.com",
+    name: "Citizen Bhai",
     phone: "+1234567890",
     role: "citizen",
     createdAt: new Date("2024-01-15"),
@@ -13,7 +13,7 @@ export const mockUsers: User[] = [
   {
     id: "2",
     email: "admin@cityworks.gov",
-    name: "Sarah Johnson",
+    name: "Admin Bhai",
     role: "authority",
     department: "Public Works",
     createdAt: new Date("2024-01-10"),
@@ -21,7 +21,7 @@ export const mockUsers: User[] = [
   {
     id: "3",
     email: "safety@cityworks.gov",
-    name: "Mike Rodriguez",
+    name: "Rahul Bhai",
     role: "authority",
     department: "Public Safety",
     createdAt: new Date("2024-01-12"),
@@ -38,14 +38,14 @@ export const mockIssues: Issue[] = [
     priority: "high",
     status: "in-progress",
     location: {
-      address: "123 Main Street, Downtown",
-      coordinates: { lat: 40.7128, lng: -74.006 },
+      address: "Nalbari, Bidyapur land no-7, ward no-2",
+      coordinates: { lat: 26.44071, lng: -91.44492 },
     },
     images: ["/street-pothole.png"],
     citizenId: "1",
     assignedTo: "2",
-    createdAt: new Date("2024-01-20"),
-    updatedAt: new Date("2024-01-22"),
+    createdAt: new Date("2025-09-10"),
+    updatedAt: new Date("2025-10-22"),
   },
   {
     id: "2",
@@ -55,11 +55,11 @@ export const mockIssues: Issue[] = [
     priority: "medium",
     status: "pending",
     location: {
-      address: "456 Oak Avenue, Residential District",
+      address: "Bhagawati Para, Mirza",
     },
     citizenId: "1",
-    createdAt: new Date("2024-01-18"),
-    updatedAt: new Date("2024-01-18"),
+    createdAt: new Date("2025-09-28"),
+    updatedAt: new Date("2025-10-11"),
   },
   {
     id: "3",
@@ -69,14 +69,14 @@ export const mockIssues: Issue[] = [
     priority: "medium",
     status: "resolved",
     location: {
-      address: "Central Park, East Side",
+      address: "Adabari Park",
     },
     images: ["/illegal-dumping-debris.jpg"],
     citizenId: "1",
     assignedTo: "2",
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-21"),
-    resolvedAt: new Date("2024-01-21"),
+    createdAt: new Date("2025-01-15"),
+    updatedAt: new Date("2025-01-21"),
+    resolvedAt: new Date("2025-01-21"),
   },
 ]
 
@@ -89,7 +89,7 @@ export const mockComments: Comment[] = [
     content:
       "We have received your report and assigned a crew to assess the damage. Work should begin within 48 hours.",
     isInternal: false,
-    createdAt: new Date("2024-01-21"),
+    createdAt: new Date("2025-01-21"),
   },
   {
     id: "2",
@@ -97,7 +97,7 @@ export const mockComments: Comment[] = [
     userId: "2",
     content: "Crew dispatched. Materials ordered.",
     isInternal: true,
-    createdAt: new Date("2024-01-22"),
+    createdAt: new Date("2025-01-22"),
   },
 ]
 
