@@ -135,7 +135,7 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
             <p className="font-medium mb-1">Demo Credentials:</p>
             {role === "citizen" ? (
               <p>
-                Email: john.citizen@email.com
+                Email: citizen@gmail.com
                 <br />
                 Password: demo123
               </p>
