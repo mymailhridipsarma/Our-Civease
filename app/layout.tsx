@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: 'Created by ByteBloom',
   generator: 'CivEase',
   icons: {
-    icon: '/icon.svg',
+    icon: 'logo.ico.png',
   },
 }
 
