@@ -133,7 +133,7 @@ export default function AuthorityDashboard() {
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics?.totalIssues || 0}</div>
+              <div className="text-2xl font-bold">{issues.length}</div>
               <p className="text-xs text-muted-foreground">All time reports</p>
             </CardContent>
           </Card>
