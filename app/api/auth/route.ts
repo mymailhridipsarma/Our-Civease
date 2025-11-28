@@ -1,31 +1,45 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { mockUsers } from "@/lib/mock-data"
+import { NextResponse } from "next/server"
+import { supabase } from "@/lib/supabaseClient"
+import bcrypt from "bcryptjs"
 
-export async function POST(request: NextRequest) {
+export const dynamic = "force-dynamic"
+
+// POST /api/auth/login
+export async function POST(req: Request) {
   try {
-    const { email, password, role } = await request.json()
+    const { email, password } = await req.json()
 
-    // Mock authentication - in real app, verify password hash
-    const user = mockUsers.find((u) => u.email === email && u.role === role)
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password required" },
+        { status: 400 },
+      )
+    }
 
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single()
+
+    if (error || !user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // In real app, create JWT token
-    const token = `mock-token-${user.id}`
+    // Assuming you have `password_hash` column in `users`
+    const isValid = await bcrypt.compare(password, user.password_hash)
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-      },
-      token,
-    })
-  } catch (error) {
-    return NextResponse.json({ error: "Authentication failed" }, { status: 500 })
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // TODO: create a JWT or session cookie
+    // For now just return the user data (without password_hash)
+    const { password_hash, ...safeUser } = user
+
+    return NextResponse.json({ user: safeUser })
+  } catch (err) {
+    console.error("Auth error:", err)
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 })
   }
 }
