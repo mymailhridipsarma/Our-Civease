@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 
 export const dynamic = "force-dynamic"
 
-// POST /api/auth/login
+
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json()
@@ -26,16 +26,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Assuming you have `password_hash` column in `users`
     const isValid = await bcrypt.compare(password, user.password_hash)
 
     if (!isValid) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // TODO: create a JWT or session cookie
-    // For now just return the user data (without password_hash)
-    const { password_hash, ...safeUser } = user
+
+    const { password_hash, ...rest } = user
+
+    const safeUser = {
+      id: rest.id,
+      email: rest.email,
+      name: rest.full_name,      
+      role: rest.role,
+    }
 
     return NextResponse.json({ user: safeUser })
   } catch (err) {
