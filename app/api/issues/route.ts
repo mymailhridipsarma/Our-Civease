@@ -3,9 +3,8 @@ import { supabase } from "@/lib/supabaseClient"
 
 export const dynamic = "force-dynamic"
 
-// Map DB row -> frontend Issue shape (for lists, dashboard, etc.)
+// 🔧 Make DB row look like the Issue type your frontend uses
 function mapDbIssue(row: any) {
-  // Map DB status to UI status
   const statusMap: Record<string, string> = {
     open: "pending",
     in_progress: "in-progress",
@@ -19,17 +18,22 @@ function mapDbIssue(row: any) {
     description: row.description ?? "",
     status: statusMap[row.status] ?? "pending",
     priority: row.priority ?? "medium",
-    categoryId: row.category_id ?? null,
-    departmentId: row.department_id ?? null,
-    citizenId: row.citizen_id,
+
+    // Your frontend expects a string "category"
+    // For now we just send something readable (you can improve later with a join)
+    category: "General",
+
+    // Your frontend uses issue.location.address
     location: {
-      name: row.location_name ?? "",
-      latitude: row.latitude,
-      longitude: row.longitude,
+      address: row.location_name ?? "Not specified",
     },
+
+    // Frontend expects an array of image URLs
     images: Array.isArray(row.photo_urls) ? row.photo_urls : [],
+
+    assignedTo: row.assigned_to ?? null,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    updatedAt: row.updated_at ?? row.created_at,
   }
 }
 
@@ -47,10 +51,10 @@ export async function GET(request: NextRequest) {
 
   if (status && status !== "all") {
     const reverseStatusMap: Record<string, string> = {
-      "pending": "open",
+      pending: "open",
       "in-progress": "in_progress",
-      "resolved": "resolved",
-      "closed": "closed",
+      resolved: "resolved",
+      closed: "closed",
     }
     query = query.eq("status", reverseStatusMap[status] ?? status)
   }
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json((data ?? []).map(mapDbIssue))
 }
 
-// POST /api/issues  – citizen reports issue
+// POST /api/issues – citizen reporting
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -74,8 +78,8 @@ export async function POST(request: NextRequest) {
       title,
       description,
       priority,
-      categoryId,
       citizenId,
+      categoryId,
       departmentId,
       latitude,
       longitude,
@@ -94,8 +98,8 @@ export async function POST(request: NextRequest) {
       title,
       description,
       priority: priority ?? "medium",
-      status: "open",                    // default for new issues
-      citizen_id: citizenId,          
+      status: "open",                 // DB value
+      citizen_id: citizenId,          // NOT NULL in your schema
       category_id: categoryId ?? null,
       department_id: departmentId ?? null,
       latitude: latitude ?? null,
