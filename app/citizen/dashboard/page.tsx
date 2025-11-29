@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CitizenNav } from "@/components/citizen-nav" // if your nav name differs, adjust this import
+import { CitizenNav } from "@/components/citizen-nav" // change if your component name is different
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,13 +15,27 @@ export default function CitizenDashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // 1) Load user from localStorage
   useEffect(() => {
-    const userData = localStorage.getItem("user")
+    const userData = typeof window !== "undefined" ? localStorage.getItem("user") : null
     if (userData) {
-      setUser(JSON.parse(userData))
+      try {
+        const parsed = JSON.parse(userData)
+        setUser(parsed)
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e)
+      }
+    } else {
+      setLoading(false) // no user, stop loading
     }
+  }, [])
 
-    fetch("/api/issues?citizenId=self") // adjust if your API expects a real ID
+  // 2) After user is known, fetch their issues using citizenId=<user.id>
+  useEffect(() => {
+    if (!user?.id) return
+
+    setLoading(true)
+    fetch(`/api/issues?citizenId=${encodeURIComponent(user.id)}`)
       .then((res) => res.json())
       .then((data) => {
         setIssues(Array.isArray(data) ? data : [])
@@ -31,7 +45,7 @@ export default function CitizenDashboardPage() {
         console.error("Failed to load citizen issues:", err)
         setLoading(false)
       })
-  }, [])
+  }, [user])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -172,9 +186,13 @@ export default function CitizenDashboardPage() {
                         <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate max-w-full">
                           {issue.title}
                         </h3>
-                        <Badge className={getStatusColor(issue.status)}>{issue.status.replace("-", " ")}</Badge>
+                        <Badge className={getStatusColor(issue.status)}>
+                          {issue.status.replace("-", " ")}
+                        </Badge>
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{issue.description}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                        {issue.description}
+                      </p>
                     </div>
                   </div>
 
