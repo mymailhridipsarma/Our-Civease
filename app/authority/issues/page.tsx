@@ -116,12 +116,35 @@ export default function AuthorityIssuesPage() {
   }
 
   const handleAssignToMe = async (issueId: string) => {
-    // TODO: real API call later
-    setIssues(
-      issues.map((issue) =>
-        issue.id === issueId ? { ...issue, status: "in-progress" as const, assignedTo: "current-user" } : issue,
-      ),
-    )
+    try {
+      // get current authority user from localStorage
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null
+      const currentUser = storedUser ? JSON.parse(storedUser) : null
+      const assignedTo = currentUser?.id || null
+
+      const res = await fetch(`/api/issues/${issueId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "in-progress",
+          assignedTo,
+        }),
+      })
+
+      if (!res.ok) {
+        console.error("Failed to assign issue", await res.text())
+        return
+      }
+
+      const updated: Issue = await res.json()
+
+      // sync local state with updated issue from backend
+      setIssues((prev) =>
+        prev.map((issue) => (issue.id === issueId ? { ...issue, ...updated } : issue)),
+      )
+    } catch (err) {
+      console.error("Error assigning issue:", err)
+    }
   }
 
   const stats = {
