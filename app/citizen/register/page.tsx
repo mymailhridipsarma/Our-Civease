@@ -42,7 +42,7 @@ export default function CitizenRegisterPage() {
       if (!res.ok) {
         setError(data.error || "Failed to create account")
       } else {
-        // Option: redirect to login after success
+        // redirect to login after success
         router.push("/citizen/login")
       }
     } catch (err) {
@@ -67,7 +67,10 @@ export default function CitizenRegisterPage() {
 
         <div>
           <label className="block text-sm mb-1">Full name</label>
-          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <Input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </div>
 
         <div>
@@ -115,6 +118,16 @@ export default function CitizenRegisterPage() {
         >
           {loading ? "Creating account..." : "Create account"}
         </Button>
+
+        <p className="text-center text-sm mt-2">
+          Already have an account?{" "}
+          <a
+            href="/citizen/login"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Sign in
+          </a>
+        </p>
       </form>
     </div>
   )
