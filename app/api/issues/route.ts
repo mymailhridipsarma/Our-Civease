@@ -18,12 +18,10 @@ function mapDbIssue(row: any) {
     description: row.description ?? "",
     status: statusMap[row.status] ?? row.status ?? "pending",
     priority: row.priority ?? "medium",
-    category: "General", // you can later map category_id to name
-
+    category: "General",
     location: {
       address: row.location_name ?? "Not specified",
     },
-
     images: Array.isArray(row.photo_urls) ? row.photo_urls : [],
     assignedTo: row.assigned_to ?? null,
     createdAt: row.created_at,
@@ -107,10 +105,10 @@ export async function POST(request: NextRequest) {
       .select("*")
       .single()
 
-    if (error) {
+    if (error || !data) {
       console.error("Error creating issue:", error)
       return NextResponse.json(
-        { error: error.message || "Failed to create issue" },
+        { error: error?.message || "Failed to create issue" },
         { status: 500 },
       )
     }
