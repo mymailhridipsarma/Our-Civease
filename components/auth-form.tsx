@@ -33,21 +33,47 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
     setError("")
 
     try {
+      const body: any = {
+        type,        // "login" or "register" → backend can switch on this
+        role,        // "citizen" | "authority"
+        email,
+        password,
+      }
+
+      if (type === "register") {
+        body.name = name
+        body.phone = phone
+      }
+
       const response = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify(body),
       })
-
-      if (!response.ok) {
-        throw new Error("Authentication failed")
-      }
 
       const data = await response.json()
 
-      // Store user data in localStorage (in real app, use secure storage)
-      localStorage.setItem("user", JSON.stringify(data.user))
-      localStorage.setItem("token", data.token)
+      if (!response.ok) {
+        // backend can send { error: "message" }
+        throw new Error(data?.error || "Authentication failed")
+      }
+
+      // Support both shapes:
+      // { user, token? } OR just { id, email, ... }
+      const user = data.user ?? data
+      const token = data.token
+
+      if (!user) {
+        throw new Error("No user returned from server")
+      }
+
+      // Store user data in localStorage (for now; in real app use httpOnly cookie/session)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(user))
+        if (token) {
+          localStorage.setItem("token", token)
+        }
+      }
 
       // Redirect based on role
       if (role === "citizen") {
@@ -55,8 +81,8 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
       } else {
         router.push("/authority/dashboard")
       }
-    } catch (err) {
-      setError("Invalid credentials. Please try again.")
+    } catch (err: any) {
+      setError(err?.message || "Invalid credentials. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -75,18 +101,35 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
               <>
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </div>
               </>
             )}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -137,13 +180,13 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
               <p>
                 Email: citizen@gmail.com
                 <br />
-                Password: demo123
+                Password: demo@123
               </p>
             ) : (
               <p>
-                Email: admin@cityworks.gov
+                Email: authority@cityworks.gov
                 <br />
-                Password: admin123
+                Password: password123
               </p>
             )}
           </div>
