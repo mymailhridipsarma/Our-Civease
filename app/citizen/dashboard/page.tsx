@@ -1,36 +1,36 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CitizenNav } from "@/components/citizen-nav"
+import { CitizenNav } from "@/components/citizen-nav" // if your nav name differs, adjust this import
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Plus, AlertCircle, Clock, CheckCircle, TrendingUp } from "lucide-react"
+import { MapPin, Calendar, AlertTriangle, CheckCircle, Clock, PlusCircle } from "lucide-react"
 import Link from "next/link"
 import type { Issue } from "@/lib/types"
 
-export default function CitizenDashboard() {
+export default function CitizenDashboardPage() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get user from localStorage
     const userData = localStorage.getItem("user")
     if (userData) {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
-
-      // Fetch user's issues
-      fetch(`/api/issues?citizenId=${parsedUser.id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setIssues(data)
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
+      setUser(JSON.parse(userData))
     }
+
+    fetch("/api/issues?citizenId=self") // adjust if your API expects a real ID
+      .then((res) => res.json())
+      .then((data) => {
+        setIssues(Array.isArray(data) ? data : [])
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error("Failed to load citizen issues:", err)
+        setLoading(false)
+      })
   }, [])
 
   const getStatusColor = (status: string) => {
@@ -48,207 +48,191 @@ export default function CitizenDashboard() {
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800"
-      case "high":
-        return "bg-orange-100 text-orange-800"
-      case "medium":
-        return "bg-yellow-100 text-yellow-800"
-      case "low":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const stats = {
-    total: issues.length,
-    pending: issues.filter((i) => i.status === "pending").length,
-    inProgress: issues.filter((i) => i.status === "in-progress").length,
-    resolved: issues.filter((i) => i.status === "resolved").length,
-  }
+  const total = issues.length
+  const resolved = issues.filter((i) => i.status === "resolved").length
+  const inProgress = issues.filter((i) => i.status === "in-progress").length
+  const pending = issues.filter((i) => i.status === "pending").length
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <CitizenNav />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">Loading...</div>
+          <div className="text-center">Loading dashboard...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <CitizenNav />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.name}!</h1>
-          <p className="text-gray-600">Here's an overview of your reported issues and community activity.</p>
-        </div>
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {/* Header */}
+        <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Welcome, {user?.full_name || user?.name || "Citizen"}
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">
+              Track your reported issues and see their progress.
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <Link href="/citizen/report" className="block">
+              <Button className="w-full sm:w-auto flex items-center gap-2">
+                <PlusCircle className="w-4 h-4" />
+                Report New Issue
+              </Button>
+            </Link>
+          </div>
+        </section>
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <Link href="/citizen/report">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-5 h-5 mr-2" />
-              Report New Issue
-            </Button>
-          </Link>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+        {/* Stats */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+          <Card className="min-w-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Reports</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">All time reports</p>
+              <div className="text-2xl sm:text-3xl font-bold">{total}</div>
+              <p className="text-xs text-muted-foreground">All issues you have reported</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground">Awaiting review</p>
+              <div className="text-2xl sm:text-3xl font-bold text-yellow-600">{pending}</div>
+              <p className="text-xs text-muted-foreground">Waiting for review</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-xs sm:text-sm font-medium">In Progress</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{inProgress}</div>
               <p className="text-xs text-muted-foreground">Being worked on</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Resolved</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.resolved}</div>
-              <p className="text-xs text-muted-foreground">Successfully fixed</p>
+              <div className="text-2xl sm:text-3xl font-bold text-green-600">{resolved}</div>
+              <p className="text-xs text-muted-foreground">Successfully resolved issues</p>
             </CardContent>
           </Card>
-        </div>
+        </section>
 
         {/* Recent Issues */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Issues</CardTitle>
-            <CardDescription>Your latest reported issues and their current status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {issues.length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No issues reported yet</h3>
-                <p className="text-gray-600 mb-4">Start by reporting your first community issue.</p>
-                <Link href="/citizen/report">
-                  <Button>Report Your First Issue</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {issues.slice(0, 5).map((issue) => (
-                  <div
-                    key={issue.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-medium text-gray-900">{issue.title}</h3>
+        <section className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Your Recent Issues</h2>
+              <p className="text-xs sm:text-sm text-gray-600">
+                Latest issues you&apos;ve submitted to the authorities.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              <Link href="/citizen/issues">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  View All
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {issues.slice(0, 5).length === 0 && (
+              <Card>
+                <CardContent className="py-6 text-center text-sm text-gray-500">
+                  You haven&apos;t reported any issues yet.
+                </CardContent>
+              </Card>
+            )}
+
+            {issues.slice(0, 5).map((issue) => (
+              <Card key={issue.id} className="hover:shadow-sm transition-shadow">
+                <CardContent className="p-3 sm:p-4 flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate max-w-full">
+                          {issue.title}
+                        </h3>
                         <Badge className={getStatusColor(issue.status)}>{issue.status.replace("-", " ")}</Badge>
-                        <Badge variant="outline" className={getPriorityColor(issue.priority)}>
-                          {issue.priority}
-                        </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{issue.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>📍 {issue.location.address}</span>
-                        <span>📅 {new Date(issue.createdAt).toLocaleDateString()}</span>
-                        <span>🏷️ {issue.category}</span>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <Link href={`/citizen/issues/${issue.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                      </Link>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{issue.description}</p>
                     </div>
                   </div>
-                ))}
 
-                {issues.length > 5 && (
-                  <div className="text-center pt-4">
-                    <Link href="/citizen/issues">
-                      <Button variant="outline">View All Issues</Button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] sm:text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {issue.location?.address || "Not specified"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "—"}
+                      </span>
+                    </div>
+                    <Link href={`/citizen/issues/${issue.id}`}>
+                      <Button variant="outline" size="xs" className="h-7 px-2 text-[11px]">
+                        View Details
+                      </Button>
                     </Link>
                   </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
 
-        {/* Progress Overview */}
-        {stats.total > 0 && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Your Impact</CardTitle>
-              <CardDescription>See how your reports are making a difference in the community</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+        {/* Progress overview */}
+        {total > 0 && (
+          <section>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base sm:text-lg">Overall Progress</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  How many of your issues have moved forward.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Resolution Rate</span>
-                    <span>{Math.round((stats.resolved / stats.total) * 100)}%</span>
+                  <div className="flex justify-between text-xs sm:text-sm mb-1">
+                    <span>Resolved</span>
+                    <span>
+                      {resolved}/{total}
+                    </span>
                   </div>
-                  <Progress value={(stats.resolved / stats.total) * 100} className="h-2" />
+                  <Progress value={(resolved / total) * 100} className="h-2" />
                 </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                    <div className="text-sm text-gray-600">Issues Reported</div>
+                <div>
+                  <div className="flex justify-between text-xs sm:text-sm mb-1">
+                    <span>In Progress</span>
+                    <span>
+                      {inProgress}/{total}
+                    </span>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{stats.resolved}</div>
-                    <div className="text-sm text-gray-600">Issues Resolved</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%
-                    </div>
-                    <div className="text-sm text-gray-600">Success Rate</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">4.2</div>
-                    <div className="text-sm text-gray-600">Avg Days to Resolve</div>
-                  </div>
+                  <Progress value={(inProgress / total) * 100} className="h-2" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </section>
         )}
       </main>
     </div>
