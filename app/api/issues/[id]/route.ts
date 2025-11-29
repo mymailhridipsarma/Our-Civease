@@ -39,7 +39,7 @@ function mapDbIssue(row: any) {
   }
 }
 
-// GET /api/issues/:id – single issue
+// GET /api/issues/:id – single issue if you ever need it
 export async function GET(_req: Request, { params }: RouteParams) {
   const { id } = params
 
@@ -66,9 +66,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
   try {
     const body = await req.json()
-    const { status, assignedTo } = body as {
+    const { status, assignedTo, assignedBy, notes } = body as {
       status?: string
       assignedTo?: string | null
+      assignedBy?: string | null
+      notes?: string | null
     }
 
     const update: any = {}
@@ -88,6 +90,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       )
     }
 
+    // 1) Update main issue
     const { data, error } = await supabase
       .from("issues")
       .update(update)
@@ -101,6 +104,32 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         { error: error?.message || "Failed to update issue" },
         { status: 500 },
       )
+    }
+
+    // 2) Log into issue_assignments (for audit history)
+    const effectiveAssignedTo = assignedTo ?? null
+    const effectiveAssignedBy = assignedBy ?? assignedTo // for "Assign to me" both are same
+
+    if (effectiveAssignedBy) {
+      const { error: assignError } = await supabase
+        .from("issue_assignments")
+        .insert([
+          {
+            issue_id: id,
+            assigned_to: effectiveAssignedTo,
+            assigned_by: effectiveAssignedBy,
+            assignment_status: "assigned",
+            notes: notes ?? null,
+          },
+        ])
+
+      if (assignError) {
+        console.error(
+          "Error inserting issue_assignments row:",
+          assignError,
+        )
+        // we don't fail the whole request, just log it
+      }
     }
 
     return NextResponse.json(mapDbIssue(data))
