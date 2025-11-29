@@ -159,19 +159,26 @@ export function AuthForm({ type, role, title, description }: AuthFormProps) {
             {type === "login" ? (
               <p>
                 {"Don't have an account? "}
-                <a href={`/${role}/register`} className="text-blue-600 hover:underline">
+                <a
+                  href={`/${role}/register`}
+                  className="text-blue-600 hover:underline font-medium"
+                >
                   Sign up
                 </a>
               </p>
             ) : (
               <p>
                 Already have an account?{" "}
-                <a href={`/${role}/login`} className="text-blue-600 hover:underline">
+                <a
+                  href={`/${role}/login`}
+                  className="text-blue-600 hover:underline font-medium"
+                >
                   Sign in
                 </a>
               </p>
             )}
           </div>
+
 
           {/* Demo credentials */}
           <div className="mt-6 p-3 bg-gray-50 rounded-lg text-xs">
