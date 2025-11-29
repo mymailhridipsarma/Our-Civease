@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 export default async function IssueDetailsPage({ params }: PageProps) {
   const { id } = params
 
-  // Build absolute URL so it works on Vercel + locally
+  // Build absolute URL so it works on Vercel + local
   const headersList = headers()
   const host = headersList.get("host")
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
@@ -23,7 +23,7 @@ export default async function IssueDetailsPage({ params }: PageProps) {
 
   const apiIssue = await res.json()
 
-  // Map API issue -> UI shape expected by your JSX
+  // Map API issue -> shape this page expects
   const issue = {
     id: apiIssue.id,
     title: apiIssue.title ?? "",
@@ -36,7 +36,7 @@ export default async function IssueDetailsPage({ params }: PageProps) {
     images: Array.isArray(apiIssue.images) ? apiIssue.images : [],
   }
 
-  // Comments – keep UI but empty for now (no table needed)
+  // No comments wired yet -> show "No comments yet."
   const comments: any[] = []
 
   return (
