@@ -115,12 +115,12 @@ export default function AuthorityIssuesPage() {
     }
   }
 
-  const handleAssignToMe = async (issueId: string) => {
+    const handleAssignToMe = async (issueId: string) => {
     try {
-      // get current authority user from localStorage
       const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null
       const currentUser = storedUser ? JSON.parse(storedUser) : null
       const assignedTo = currentUser?.id || null
+      const assignedBy = currentUser?.id || null
 
       const res = await fetch(`/api/issues/${issueId}`, {
         method: "PATCH",
@@ -128,6 +128,7 @@ export default function AuthorityIssuesPage() {
         body: JSON.stringify({
           status: "in-progress",
           assignedTo,
+          assignedBy,
         }),
       })
 
@@ -138,7 +139,6 @@ export default function AuthorityIssuesPage() {
 
       const updated: Issue = await res.json()
 
-      // sync local state with updated issue from backend
       setIssues((prev) =>
         prev.map((issue) => (issue.id === issueId ? { ...issue, ...updated } : issue)),
       )
@@ -146,6 +146,7 @@ export default function AuthorityIssuesPage() {
       console.error("Error assigning issue:", err)
     }
   }
+
 
   const stats = {
     all: issues.length,
