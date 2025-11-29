@@ -1,18 +1,42 @@
 "use client"
+
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Shield, LayoutDashboard, FileText, BarChart3, Settings, LogOut, Bell } from "lucide-react"
 
 export function AuthorityNav() {
   const router = useRouter()
+  const [issueCount, setIssueCount] = useState(0)
 
   const handleLogout = () => {
     localStorage.removeItem("user")
     localStorage.removeItem("token")
     router.push("/")
   }
+
+  // 🔹 Fetch Issue Count from Supabase API
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const res = await fetch("/api/issues")
+        const data = await res.json()
+
+        if (Array.isArray(data)) {
+          setIssueCount(data.length)
+        } else {
+          setIssueCount(0)
+        }
+      } catch (error) {
+        console.error("Failed to load issue count:", error)
+        setIssueCount(0)
+      }
+    }
+
+    fetchIssues()
+  }, [])
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -33,17 +57,23 @@ export function AuthorityNav() {
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
             </Link>
+
+            {/* 🔹 Dynamic Issue Count */}
             <Link href="/authority/issues" className="flex items-center gap-2 text-gray-600 hover:text-green-600">
               <FileText className="w-4 h-4" />
               Issues
-              <Badge variant="secondary" className="ml-1">
-                12
-              </Badge>
+              {issueCount > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {issueCount}
+                </Badge>
+              )}
             </Link>
+
             <Link href="/authority/analytics" className="flex items-center gap-2 text-gray-600 hover:text-green-600">
               <BarChart3 className="w-4 h-4" />
               Analytics
             </Link>
+
             <Link href="/authority/settings" className="flex items-center gap-2 text-gray-600 hover:text-green-600">
               <Settings className="w-4 h-4" />
               Settings
