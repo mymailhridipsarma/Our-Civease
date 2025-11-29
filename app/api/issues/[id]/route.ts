@@ -1,11 +1,66 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"
 
-type RouteParams = { params: { id: string } }
-
 export const dynamic = "force-dynamic"
 
-// PATCH /api/issues/:id  (update assigned_to, status)
+type RouteParams = {
+  params: { id: string }
+}
+
+const statusMap: Record<string, string> = {
+  open: "pending",
+  in_progress: "in-progress",
+  resolved: "resolved",
+  closed: "closed",
+}
+
+const reverseStatusMap: Record<string, string> = {
+  pending: "open",
+  "in-progress": "in_progress",
+  resolved: "resolved",
+  closed: "closed",
+}
+
+function mapDbIssue(row: any) {
+  return {
+    id: row.id,
+    title: row.title ?? "",
+    description: row.description ?? "",
+    status: statusMap[row.status] ?? row.status ?? "pending",
+    priority: row.priority ?? "medium",
+    category: "General",
+    location: {
+      address: row.location_name ?? "Not specified",
+    },
+    images: Array.isArray(row.photo_urls) ? row.photo_urls : [],
+    assignedTo: row.assigned_to ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
+  }
+}
+
+// GET /api/issues/:id – single issue
+export async function GET(_req: Request, { params }: RouteParams) {
+  const { id } = params
+
+  const { data, error } = await supabase
+    .from("issues")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error || !data) {
+    console.error("GET /api/issues/[id] error:", error)
+    return NextResponse.json(
+      { error: error?.message || "Issue not found" },
+      { status: 404 },
+    )
+  }
+
+  return NextResponse.json(mapDbIssue(data))
+}
+
+// PATCH /api/issues/:id – assign / change status
 export async function PATCH(req: Request, { params }: RouteParams) {
   const { id } = params
 
@@ -19,13 +74,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     const update: any = {}
 
     if (status) {
-      // map app status -> DB status
-      const reverseStatusMap: Record<string, string> = {
-        pending: "open",
-        "in-progress": "in_progress",
-        resolved: "resolved",
-        closed: "closed",
-      }
       update.status = reverseStatusMap[status] ?? status
     }
 
@@ -48,38 +96,16 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       .single()
 
     if (error || !data) {
-      console.error("Error updating issue:", error)
+      console.error("PATCH /api/issues/[id] update error:", error)
       return NextResponse.json(
         { error: error?.message || "Failed to update issue" },
         { status: 500 },
       )
     }
 
-    // return same shape as /api/issues
-    const statusMap: Record<string, string> = {
-      open: "pending",
-      in_progress: "in-progress",
-      resolved: "resolved",
-      closed: "closed",
-    }
-
-    const mapped = {
-      id: data.id,
-      title: data.title ?? "",
-      description: data.description ?? "",
-      status: statusMap[data.status] ?? data.status ?? "pending",
-      priority: data.priority ?? "medium",
-      category: "General",
-      location: { address: data.location_name ?? "Not specified" },
-      images: Array.isArray(data.photo_urls) ? data.photo_urls : [],
-      assignedTo: data.assigned_to ?? null,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at ?? data.created_at,
-    }
-
-    return NextResponse.json(mapped)
+    return NextResponse.json(mapDbIssue(data))
   } catch (err: any) {
-    console.error("PATCH /api/issues/:id error:", err)
+    console.error("PATCH /api/issues/[id] error:", err)
     return NextResponse.json(
       { error: err?.message || "Failed to update issue" },
       { status: 500 },
