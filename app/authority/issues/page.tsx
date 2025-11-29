@@ -1,70 +1,89 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { AuthorityNav } from "@/components/authority-nav"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye, Search } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-
-// Keep this in sync with what /api/issues returns
-type Issue = {
-  id: string
-  title: string
-  description: string
-  status: string
-  priority: string
-  category?: string
-  location?: {
-    address?: string
-  }
-  createdAt?: string
-  updatedAt?: string
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Search, Filter, Eye, UserCheck, Clock, CheckCircle, AlertTriangle } from "lucide-react"
+import Link from "next/link"
+import type { Issue } from "@/lib/types"
 
 export default function AuthorityIssuesPage() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [activeTab, setActiveTab] = useState("all")
 
-  // Fetch all issues once
+  const searchParams = useSearchParams()
+
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/issues")
-        const data: Issue[] = await res.json()
+    // Set initial filters from URL params
+    const status = searchParams.get("status")
+    const priority = searchParams.get("priority")
+    const category = searchParams.get("category")
+
+    if (status) setStatusFilter(status)
+    if (priority) setPriorityFilter(priority)
+    if (category) setCategoryFilter(category)
+
+    fetch("/api/issues")
+      .then((res) => res.json())
+      .then((data: Issue[]) => {
         setIssues(data)
-        setFilteredIssues(data)
-      } catch (err) {
-        console.error("Failed to load issues", err)
-      } finally {
         setLoading(false)
-      }
-    }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch issues:", err)
+        setLoading(false)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // only run once on mount
 
-    load()
-  }, [])
-
-  // Simple search filter
   useEffect(() => {
-    const term = searchTerm.toLowerCase().trim()
-    if (!term) {
-      setFilteredIssues(issues)
-      return
+    let filtered = [...issues]
+
+    // Tab filtering
+    if (activeTab !== "all") {
+      filtered = filtered.filter((issue) => issue.status === activeTab)
     }
 
-    const next = issues.filter((issue) => {
-      const title = (issue.title || "").toLowerCase()
-      const desc = (issue.description || "").toLowerCase()
-      const addr = (issue.location?.address || "").toLowerCase()
-      return title.includes(term) || desc.includes(term) || addr.includes(term)
-    })
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter((issue) => {
+        const title = (issue.title || "").toLowerCase()
+        const desc = (issue.description || "").toLowerCase()
+        const addr = (issue.location?.address || "").toLowerCase()
+        return (
+          title.includes(term) ||
+          desc.includes(term) ||
+          addr.includes(term)
+        )
+      })
+    }
 
-    setFilteredIssues(next)
-  }, [searchTerm, issues])
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((issue) => issue.status === statusFilter)
+    }
+
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((issue) => issue.category === categoryFilter)
+    }
+
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((issue) => issue.priority === priorityFilter)
+    }
+
+    setFilteredIssues(filtered)
+  }, [issues, searchTerm, statusFilter, categoryFilter, priorityFilter, activeTab])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -96,6 +115,22 @@ export default function AuthorityIssuesPage() {
     }
   }
 
+  const handleAssignToMe = async (issueId: string) => {
+    // TODO: real API call later
+    setIssues(
+      issues.map((issue) =>
+        issue.id === issueId ? { ...issue, status: "in-progress" as const, assignedTo: "current-user" } : issue,
+      ),
+    )
+  }
+
+  const stats = {
+    all: issues.length,
+    pending: issues.filter((i) => i.status === "pending").length,
+    inProgress: issues.filter((i) => i.status === "in-progress").length,
+    resolved: issues.filter((i) => i.status === "resolved").length,
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -111,95 +146,212 @@ export default function AuthorityIssuesPage() {
     <div className="min-h-screen bg-gray-50">
       <AuthorityNav />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Issue Management</h1>
-            <p className="text-gray-600">
-              View and manage all issues reported by citizens.
-            </p>
-          </div>
-        </header>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Issue Management</h1>
+          <p className="text-gray-600">Review, assign, and track community issues reported by citizens.</p>
+        </div>
 
-        {/* Search */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by title, description or location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              All Issues
+              <Badge variant="secondary">{stats.all}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Pending
+              <Badge variant="secondary">{stats.pending}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="in-progress" className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              In Progress
+              <Badge variant="secondary">{stats.inProgress}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="resolved" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Resolved
+              <Badge variant="secondary">{stats.resolved}</Badge>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Issues list */}
-        <section className="space-y-4">
-          {filteredIssues.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-gray-500">
-                No issues found.
+          <TabsContent value={activeTab} className="mt-6">
+            {/* Filters */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="w-5 h-5" />
+                  Advanced Filters
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search issues..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                      <SelectItem value="safety">Public Safety</SelectItem>
+                      <SelectItem value="environment">Environment</SelectItem>
+                      <SelectItem value="utilities">Utilities</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in-progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
-          ) : (
-            filteredIssues.map((issue) => (
-              <Card key={issue.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h2 className="font-semibold text-gray-900">{issue.title}</h2>
-                      <Badge className={getStatusColor(issue.status)}>
-                        {issue.status.replace("-", " ")}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={getPriorityColor(issue.priority)}
-                      >
-                        {issue.priority}
-                      </Badge>
+
+            {/* Issues List */}
+            <div className="space-y-4">
+              {filteredIssues.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="text-gray-400 mb-4">
+                      <Search className="w-12 h-12 mx-auto" />
                     </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No issues found</h3>
+                    <p className="text-gray-600">Try adjusting your search or filter criteria.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredIssues.map((issue) => (
+                  <Card key={issue.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{issue.title}</h3>
+                            <Badge className={getStatusColor(issue.status)}>{issue.status.replace("-", " ")}</Badge>
+                            <Badge variant="outline" className={getPriorityColor(issue.priority)}>
+                              {issue.priority}
+                            </Badge>
+                            {issue.assignedTo && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                Assigned
+                              </Badge>
+                            )}
+                          </div>
 
-                    <p className="text-sm text-gray-600 mb-2">
-                      {issue.description}
-                    </p>
+                          <p className="text-gray-600 mb-4 line-clamp-2">{issue.description}</p>
 
-                    <div className="text-xs text-gray-500 flex flex-wrap gap-4">
-                      <span>
-                        Location:{" "}
-                        {issue.location?.address || "Not specified"}
-                      </span>
-                      <span>
-                        Category: {issue.category || "General"}
-                      </span>
-                      {issue.createdAt && (
-                        <span>
-                          Reported:{" "}
-                          {new Date(issue.createdAt).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-500 mb-4">
+                            <div>
+                              <span className="font-medium">Location:</span>
+                              <br />
+                              {issue.location?.address || "Not specified"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Category:</span>
+                              <br />
+                              {issue.category || "General"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Reported:</span>
+                              <br />
+                              {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "—"}
+                            </div>
+                            <div>
+                              <span className="font-medium">Last Updated:</span>
+                              <br />
+                              {issue.updatedAt ? new Date(issue.updatedAt).toLocaleDateString() : "—"}
+                            </div>
+                          </div>
 
-                  <div className="flex flex-col gap-2">
-                    <Link href={`/authority/issues/${issue.id}`}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex items-center gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Details
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </section>
+                          {issue.images && issue.images.length > 0 && (
+                            <div className="mb-4">
+                              <div className="flex gap-2">
+                                {issue.images.slice(0, 4).map((image, index) => (
+                                  <img
+                                    key={index}
+                                    src={image || "/placeholder.svg"}
+                                    alt={`Issue ${index + 1}`}
+                                    className="w-20 h-20 object-cover rounded border"
+                                  />
+                                ))}
+                                {issue.images.length > 4 && (
+                                  <div className="w-20 h-20 bg-gray-100 rounded border flex items-center justify-center text-xs text-gray-600">
+                                    +{issue.images.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="ml-6 flex flex-col gap-2">
+                          <Link href={`/authority/issues/${issue.id}`}>
+                            <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent">
+                              <Eye className="w-4 h-4" />
+                              View Details
+                            </Button>
+                          </Link>
+
+                          {issue.status === "pending" && !issue.assignedTo && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleAssignToMe(issue.id)}
+                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                              Assign to Me
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Summary */}
+            {filteredIssues.length > 0 && (
+              <div className="mt-8 text-center text-sm text-gray-600">
+                Showing {filteredIssues.length} of {issues.length} issues
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   )
