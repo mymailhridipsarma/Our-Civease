@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient"
 
 export const dynamic = "force-dynamic"
 
-// 🔧 Make DB row look like the Issue type your frontend uses
+// Map DB row -> frontend Issue shape
 function mapDbIssue(row: any) {
   const statusMap: Record<string, string> = {
     open: "pending",
@@ -16,21 +16,15 @@ function mapDbIssue(row: any) {
     id: row.id,
     title: row.title ?? "",
     description: row.description ?? "",
-    status: statusMap[row.status] ?? "pending",
+    status: statusMap[row.status] ?? row.status ?? "pending",
     priority: row.priority ?? "medium",
+    category: "General", // you can later map category_id to name
 
-    // Your frontend expects a string "category"
-    // For now we just send something readable (you can improve later with a join)
-    category: "General",
-
-    // Your frontend uses issue.location.address
     location: {
       address: row.location_name ?? "Not specified",
     },
 
-    // Frontend expects an array of image URLs
     images: Array.isArray(row.photo_urls) ? row.photo_urls : [],
-
     assignedTo: row.assigned_to ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
@@ -73,7 +67,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-
     const {
       title,
       description,
@@ -98,8 +91,8 @@ export async function POST(request: NextRequest) {
       title,
       description,
       priority: priority ?? "medium",
-      status: "open",                 // DB value
-      citizen_id: citizenId,          // NOT NULL in your schema
+      status: "open",
+      citizen_id: citizenId,
       category_id: categoryId ?? null,
       department_id: departmentId ?? null,
       latitude: latitude ?? null,
