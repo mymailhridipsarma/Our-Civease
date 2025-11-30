@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CitizenNav } from "@/components/citizen-nav" // change import if your nav name is different
+import { CitizenNav } from "@/components/citizen-nav"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -95,9 +95,9 @@ export default function CitizenDashboardPage() {
               Track your reported issues and see their progress.
             </p>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-full sm:w-auto">
             <Link href="/citizen/report" className="block">
-              <Button className="w-full sm:w-auto flex items-center gap-2">
+              <Button className="w-full sm:w-auto flex items-center justify-center gap-2">
                 <PlusCircle className="w-4 h-4" />
                 Report New Issue
               </Button>
@@ -171,7 +171,7 @@ export default function CitizenDashboardPage() {
                 Latest issues you&apos;ve submitted to the authorities.
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 w-full sm:w-auto">
               <Link href="/citizen/issues">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">
                   View All
@@ -192,6 +192,7 @@ export default function CitizenDashboardPage() {
             {issues.slice(0, 5).map((issue) => (
               <Card key={issue.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-3 sm:p-4 flex flex-col gap-3">
+                  {/* Top part: title + status */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -208,22 +209,33 @@ export default function CitizenDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] sm:text-xs text-gray-500">
+                  {/* Bottom row: meta + button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[11px] sm:text-xs text-gray-500">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 max-w-[220px] sm:max-w-none truncate">
                         <MapPin className="w-3 h-3" />
-                        {issue.location?.address || "Not specified"}
+                        <span className="truncate">
+                          {issue.location?.address || "Not specified"}
+                        </span>
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "—"}
+                        {issue.createdAt
+                          ? new Date(issue.createdAt).toLocaleDateString()
+                          : "—"}
                       </span>
                     </div>
-                    <Link href={`/citizen/issues/${issue.id}`}>
-                      <Button variant="outline" size="xs" className="h-7 px-2 text-[11px]">
-                        View Details
-                      </Button>
-                    </Link>
+                    <div className="w-full sm:w-auto">
+                      <Link href={`/citizen/issues/${issue.id}`}>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="h-8 px-3 text-[11px] w-full sm:w-auto justify-center"
+                        >
+                          View Details
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
