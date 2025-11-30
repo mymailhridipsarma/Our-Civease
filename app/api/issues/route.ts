@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Read the known fields
     const {
       title,
       description,
@@ -78,32 +77,9 @@ export async function POST(request: NextRequest) {
       longitude,
       locationName,
       photoUrls,
+      location,
+      images, // fallback if frontend sends `images` instead of `photoUrls`
     } = body
-
-    // Also support a `location` object or plain `address` coming from frontend
-    const location = body.location || null
-
-    const derivedLocationName =
-      (location && (location.address || location.name)) ||
-      locationName ||
-      body.address || // just in case
-      null
-
-    const derivedLatitude =
-      latitude ??
-      (location && (location.lat ?? location.latitude)) ??
-      null
-
-    const derivedLongitude =
-      longitude ??
-      (location && (location.lng ?? location.longitude)) ??
-      null
-
-    const derivedPhotoUrls = Array.isArray(photoUrls)
-      ? photoUrls
-      : Array.isArray(body.images)
-      ? body.images
-      : []
 
     if (!title || !description || !citizenId) {
       return NextResponse.json(
@@ -111,6 +87,21 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
+
+    // derive location_name from either location.address or locationName
+    const derivedLocationName =
+      (location && typeof location === "object" && location.address) ||
+      locationName ||
+      null
+
+    // accept both `photoUrls` and `images` arrays
+    const derivedPhotoUrls: string[] = Array.isArray(photoUrls)
+      ? photoUrls
+      : Array.isArray(images)
+      ? images
+      : []
+
+    console.log("Saving issue with photo URLs:", derivedPhotoUrls)
 
     const payload = {
       title,
@@ -120,10 +111,10 @@ export async function POST(request: NextRequest) {
       citizen_id: citizenId,
       category_id: categoryId ?? null,
       department_id: departmentId ?? null,
-      latitude: derivedLatitude,
-      longitude: derivedLongitude,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
       location_name: derivedLocationName,
-      photo_urls: derivedPhotoUrls,
+      photo_urls: derivedPhotoUrls, // 👈 this is what goes into DB
     }
 
     const { data, error } = await supabase
