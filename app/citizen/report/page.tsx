@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, MapPin, Send, Loader2 } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient" // 👈 added
 
 export default function ReportIssuePage() {
   const [title, setTitle] = useState("")
@@ -20,11 +21,46 @@ export default function ReportIssuePage() {
   const [category, setCategory] = useState("")
   const [priority, setPriority] = useState("")
   const [address, setAddress] = useState("")
-  const [images, setImages] = useState<string[]>([])
+  const [images, setImages] = useState<string[]>([]) // preview URLs
+  const [files, setFiles] = useState<FileList | null>(null) // 👈 real files to upload
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
+
+  // Upload selected files to Supabase Storage and return public URLs
+  const uploadPhotos = async (): Promise<string[]> => {
+    if (!files || files.length === 0) return []
+
+    const uploadedUrls: string[] = []
+    const user = JSON.parse(localStorage.getItem("user") || "{}")
+
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop() || "jpg"
+      const path = `issues/${user.id || "anon"}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from("issue-photos") // 👈 make sure this bucket exists & is public
+        .upload(path, file)
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError)
+        continue
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("issue-photos")
+        .getPublicUrl(path)
+
+      if (publicUrlData?.publicUrl) {
+        uploadedUrls.push(publicUrlData.publicUrl)
+      }
+    }
+
+    return uploadedUrls
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +70,16 @@ export default function ReportIssuePage() {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}")
 
+      if (!user.id) {
+        setError("You must be logged in to report an issue.")
+        setLoading(false)
+        return
+      }
+
+      // 1️⃣ Upload images to Supabase and get public URLs
+      const photoUrls = await uploadPhotos()
+
+      // 2️⃣ Send issue with real public URLs to backend
       const response = await fetch("/api/issues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,13 +89,15 @@ export default function ReportIssuePage() {
           category,
           priority,
           location: { address },
-          images,
+          photoUrls,          // 👈 backend stores this into photo_urls
           citizenId: user.id,
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to submit issue")
+        const data = await response.json().catch(() => ({}))
+        console.error("Issue create error:", data)
+        throw new Error(data.error || "Failed to submit issue")
       }
 
       setSuccess(true)
@@ -57,6 +105,7 @@ export default function ReportIssuePage() {
         router.push("/citizen/dashboard")
       }, 2000)
     } catch (err) {
+      console.error(err)
       setError("Failed to submit issue. Please try again.")
     } finally {
       setLoading(false)
@@ -64,12 +113,14 @@ export default function ReportIssuePage() {
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files) {
-      // In a real app, upload to cloud storage
-      const newImages = Array.from(files).map((file) => URL.createObjectURL(file))
-      setImages([...images, ...newImages])
-    }
+    const selectedFiles = e.target.files
+    if (!selectedFiles) return
+
+    setFiles(selectedFiles) // 👈 store real files for upload
+
+    // Keep your existing preview behavior (using blob URLs)
+    const newPreviews = Array.from(selectedFiles).map((file) => URL.createObjectURL(file))
+    setImages((prev) => [...prev, ...newPreviews])
   }
 
   if (success) {
@@ -82,7 +133,7 @@ export default function ReportIssuePage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Issue Reported Successfully!</h1>
           <p className="text-gray-600 mb-4">
-            Thank you for reporting this issue. We'll review it and get back to you soon.
+            Thank you for reporting this issue. We&apos;ll review it and get back to you soon.
           </p>
           <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
         </div>
