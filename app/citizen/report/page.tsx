@@ -21,19 +21,24 @@ export default function ReportIssuePage() {
   const [category, setCategory] = useState("")
   const [priority, setPriority] = useState("")
   const [address, setAddress] = useState("")
-  const [images, setImages] = useState<string[]>([])      // PREVIEW URLS ONLY
-  const [files, setFiles] = useState<FileList | null>(null) // REAL FILES
+  const [images, setImages] = useState<string[]>([])      // preview URLs only
+  const [files, setFiles] = useState<FileList | null>(null) // real files to upload
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  // Upload files from <input type="file"> to Supabase Storage
+  // Upload selected files to Supabase Storage and return public URLs
   const uploadPhotos = async (): Promise<string[]> => {
-    if (!files || files.length === 0) return []
+    if (!files || files.length === 0) {
+      console.log("[uploadPhotos] No files selected")
+      return []
+    }
 
     const uploadedUrls: string[] = []
     const user = JSON.parse(localStorage.getItem("user") || "{}")
+
+    console.log("[uploadPhotos] Uploading", files.length, "file(s)")
 
     for (const file of Array.from(files)) {
       const ext = file.name.split(".").pop() || "jpg"
@@ -41,12 +46,14 @@ export default function ReportIssuePage() {
         .toString(36)
         .slice(2)}.${ext}`
 
+      console.log("[uploadPhotos] Uploading to path:", path)
+
       const { error: uploadError } = await supabase.storage
-        .from("issue-photos") // 👈 your public bucket
+        .from("issue-photos") // 👈 CHECK bucket name in Supabase UI
         .upload(path, file)
 
       if (uploadError) {
-        console.error("Upload error:", uploadError)
+        console.error("[uploadPhotos] Upload error:", uploadError.message)
         continue
       }
 
@@ -54,11 +61,14 @@ export default function ReportIssuePage() {
         .from("issue-photos")
         .getPublicUrl(path)
 
+      console.log("[uploadPhotos] publicUrlData:", publicUrlData)
+
       if (publicUrlData?.publicUrl) {
         uploadedUrls.push(publicUrlData.publicUrl)
       }
     }
 
+    console.log("[uploadPhotos] uploadedUrls:", uploadedUrls)
     return uploadedUrls
   }
 
@@ -76,11 +86,20 @@ export default function ReportIssuePage() {
         return
       }
 
-      // 1️⃣ UPLOAD TO SUPABASE – get REAL URLs, not blob:
+      // 1️⃣ Upload images to Supabase and get PUBLIC URLs
       const photoUrls = await uploadPhotos()
-      console.log("photoUrls being sent to API:", photoUrls) // TEMP DEBUG
+      console.log("[handleSubmit] photoUrls to send:", photoUrls)
 
-      // 2️⃣ SEND to /api/issues (NO `images` in body!)
+      if (files && files.length > 0 && photoUrls.length === 0) {
+        // Files selected but nothing uploaded – almost certainly a storage config issue
+        setError(
+          "Images could not be uploaded. Please check your Supabase Storage bucket name 'issue-photos' and that it is public.",
+        )
+        setLoading(false)
+        return
+      }
+
+      // 2️⃣ Send those URLs to /api/issues
       const response = await fetch("/api/issues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,14 +110,15 @@ export default function ReportIssuePage() {
           priority,
           location: { address },
           locationName: address,
-          photoUrls,       // 👈 ONLY THIS GOES TO DB
+          photoUrls, // 👈 ONLY these URLs should go into photo_urls
           citizenId: user.id,
         }),
       })
 
+      const data = await response.json().catch(() => ({}))
+      console.log("[handleSubmit] API response:", data)
+
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        console.error("Issue create error:", data)
         throw new Error(data.error || "Failed to submit issue")
       }
 
@@ -106,9 +126,9 @@ export default function ReportIssuePage() {
       setTimeout(() => {
         router.push("/citizen/dashboard")
       }, 2000)
-    } catch (err) {
-      console.error(err)
-      setError("Failed to submit issue. Please try again.")
+    } catch (err: any) {
+      console.error("[handleSubmit] Error:", err)
+      setError(err.message || "Failed to submit issue. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -118,13 +138,13 @@ export default function ReportIssuePage() {
     const selectedFiles = e.target.files
     if (!selectedFiles) return
 
-    // Save real files for upload
+    console.log("[handleImageUpload] Selected files:", selectedFiles.length)
+
+    // Store real files for upload
     setFiles(selectedFiles)
 
-    // Keep your preview behavior using blob URLs (ONLY in UI)
-    const newPreviews = Array.from(selectedFiles).map((file) =>
-      URL.createObjectURL(file),
-    )
+    // Keep your preview UI using blob URLs (these are NOT sent to backend)
+    const newPreviews = Array.from(selectedFiles).map((file) => URL.createObjectURL(file))
     setImages((prev) => [...prev, ...newPreviews])
   }
 
