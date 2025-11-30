@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Read the known fields
     const {
       title,
       description,
@@ -77,6 +79,31 @@ export async function POST(request: NextRequest) {
       locationName,
       photoUrls,
     } = body
+
+    // Also support a `location` object or plain `address` coming from frontend
+    const location = body.location || null
+
+    const derivedLocationName =
+      (location && (location.address || location.name)) ||
+      locationName ||
+      body.address || // just in case
+      null
+
+    const derivedLatitude =
+      latitude ??
+      (location && (location.lat ?? location.latitude)) ??
+      null
+
+    const derivedLongitude =
+      longitude ??
+      (location && (location.lng ?? location.longitude)) ??
+      null
+
+    const derivedPhotoUrls = Array.isArray(photoUrls)
+      ? photoUrls
+      : Array.isArray(body.images)
+      ? body.images
+      : []
 
     if (!title || !description || !citizenId) {
       return NextResponse.json(
@@ -93,10 +120,10 @@ export async function POST(request: NextRequest) {
       citizen_id: citizenId,
       category_id: categoryId ?? null,
       department_id: departmentId ?? null,
-      latitude: latitude ?? null,
-      longitude: longitude ?? null,
-      location_name: locationName ?? null,
-      photo_urls: Array.isArray(photoUrls) ? photoUrls : [],
+      latitude: derivedLatitude,
+      longitude: derivedLongitude,
+      location_name: derivedLocationName,
+      photo_urls: derivedPhotoUrls,
     }
 
     const { data, error } = await supabase
