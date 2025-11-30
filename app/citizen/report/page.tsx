@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, MapPin, Send, Loader2 } from "lucide-react"
-import { supabase } from "@/lib/supabaseClient" // 👈 IMPORTANT
+import { supabase } from "@/lib/supabaseClient"
 
 export default function ReportIssuePage() {
   const [title, setTitle] = useState("")
@@ -21,14 +21,14 @@ export default function ReportIssuePage() {
   const [category, setCategory] = useState("")
   const [priority, setPriority] = useState("")
   const [address, setAddress] = useState("")
-  const [images, setImages] = useState<string[]>([]) // preview URLs only
-  const [files, setFiles] = useState<FileList | null>(null) // 👈 real files for upload
+  const [images, setImages] = useState<string[]>([])      // PREVIEW URLS ONLY
+  const [files, setFiles] = useState<FileList | null>(null) // REAL FILES
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  // Upload selected files to Supabase Storage and return public URLs
+  // Upload files from <input type="file"> to Supabase Storage
   const uploadPhotos = async (): Promise<string[]> => {
     if (!files || files.length === 0) return []
 
@@ -42,7 +42,7 @@ export default function ReportIssuePage() {
         .slice(2)}.${ext}`
 
       const { error: uploadError } = await supabase.storage
-        .from("issue-photos") // 👈 bucket must exist & be public
+        .from("issue-photos") // 👈 your public bucket
         .upload(path, file)
 
       if (uploadError) {
@@ -76,10 +76,11 @@ export default function ReportIssuePage() {
         return
       }
 
-      // 1️⃣ Upload images to Supabase and get PUBLIC URLs
+      // 1️⃣ UPLOAD TO SUPABASE – get REAL URLs, not blob:
       const photoUrls = await uploadPhotos()
+      console.log("photoUrls being sent to API:", photoUrls) // TEMP DEBUG
 
-      // 2️⃣ Send those URLs to /api/issues
+      // 2️⃣ SEND to /api/issues (NO `images` in body!)
       const response = await fetch("/api/issues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,10 +89,9 @@ export default function ReportIssuePage() {
           description,
           category,
           priority,
-          // support both old/new API styles:
           location: { address },
           locationName: address,
-          photoUrls,          // 👈 THIS is what backend should save to photo_urls
+          photoUrls,       // 👈 ONLY THIS GOES TO DB
           citizenId: user.id,
         }),
       })
@@ -121,7 +121,7 @@ export default function ReportIssuePage() {
     // Save real files for upload
     setFiles(selectedFiles)
 
-    // Keep your preview UI using blob URLs (ONLY for preview)
+    // Keep your preview behavior using blob URLs (ONLY in UI)
     const newPreviews = Array.from(selectedFiles).map((file) =>
       URL.createObjectURL(file),
     )
@@ -136,12 +136,9 @@ export default function ReportIssuePage() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Send className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Issue Reported Successfully!
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Issue Reported Successfully!</h1>
           <p className="text-gray-600 mb-4">
-            Thank you for reporting this issue. We&apos;ll review it and get
-            back to you soon.
+            Thank you for reporting this issue. We&apos;ll review it and get back to you soon.
           </p>
           <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
         </div>
@@ -155,21 +152,14 @@ export default function ReportIssuePage() {
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Report an Issue
-          </h1>
-          <p className="text-gray-600">
-            Help improve your community by reporting issues that need attention.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Report an Issue</h1>
+          <p className="text-gray-600">Help improve your community by reporting issues that need attention.</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>Issue Details</CardTitle>
-            <CardDescription>
-              Provide as much detail as possible to help us address the issue
-              quickly.
-            </CardDescription>
+            <CardDescription>Provide as much detail as possible to help us address the issue quickly.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -204,9 +194,7 @@ export default function ReportIssuePage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="infrastructure">
-                        Infrastructure
-                      </SelectItem>
+                      <SelectItem value="infrastructure">Infrastructure</SelectItem>
                       <SelectItem value="safety">Public Safety</SelectItem>
                       <SelectItem value="environment">Environment</SelectItem>
                       <SelectItem value="utilities">Utilities</SelectItem>
@@ -250,9 +238,7 @@ export default function ReportIssuePage() {
                 <Label htmlFor="images">Photos (Optional)</Label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">
-                    Upload photos to help illustrate the issue
-                  </p>
+                  <p className="text-sm text-gray-600 mb-2">Upload photos to help illustrate the issue</p>
                   <input
                     type="file"
                     id="images"
@@ -261,13 +247,7 @@ export default function ReportIssuePage() {
                     onChange={handleImageUpload}
                     className="hidden"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById("images")?.click()
-                    }
-                  >
+                  <Button type="button" variant="outline" onClick={() => document.getElementById("images")?.click()}>
                     Choose Photos
                   </Button>
                 </div>
@@ -283,9 +263,7 @@ export default function ReportIssuePage() {
                         />
                         <button
                           type="button"
-                          onClick={() =>
-                            setImages(images.filter((_, i) => i !== index))
-                          }
+                          onClick={() => setImages(images.filter((_, i) => i !== index))}
                           className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
                         >
                           ×
